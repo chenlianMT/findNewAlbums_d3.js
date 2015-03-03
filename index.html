@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Find New Albums!</title>
+
+<style>
+  @import url(http://fonts.googleapis.com/css?family=Oswald);
+
+  #album_related {
+      font-family: "Oswald", serif;
+  }
+
+  #band {
+      font-family: "Oswald", serif;
+  }
+</style>
+<p></p>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+d3.json("data/File_for_v.json", function(error, json) {
+  if (error) return console.warn(error);
+  console.log('Moused out');
+
+  var width = 1200,
+    height = 740,
+    padding = 2, // separation between same-color nodes
+    clusterPadding = 6, // separation between different-color nodes
+    maxRadius = 8;
+
+  var n = 1800, // total number of nodes
+      m = 18; // number of distinct clusters
+
+  var color = d3.scale.category20()
+      .domain(d3.range(m));
+
+  var R = 9;
+  var X = width - width/10;
+  var Y = height/8;
+  var Padding = height/25;
+  // the albums used as seeds
+  var myAlbum = [
+    {album:'OK Computer', artist:'Radiohead', cluster: 0, radius: R, x: X, y: Y},
+    {album:'The Dark Side of the Moon', artist:'Pink Floyd', cluster: 1, radius: R, x: X, y: Y + Padding},
+    {album:'The Velvet Underground & Nico', artist:'The Velvet Underground + Nico', cluster: 2, radius: R, x: X, y: Y + Padding * 2},
+    {album:'Wish You Were Here', artist:'Pink Floyd', cluster: 3, radius: R, x: X, y: Y + Padding * 3},
+    {album:'Abbey Road', artist:'The Beatles', cluster: 4, radius: R, x: X, y: Y + Padding * 4},
+    {album:'In the Court of the Crimson King', artist:'King Crimson', cluster: 5, radius: R, x: X, y: Y + Padding * 5},
+    {album:'Revolver', artist:'The Beatles', cluster: 6, radius: R, x: X, y: Y + Padding * 6},
+    {album:'Kid A', artist:'Radiohead', cluster: 7, radius: R, x: X, y: Y + Padding * 7},
+    {album:'Led Zeppelin [IV]', artist:'Led Zeppelin', cluster: 8, radius: R, x: X, y: Y + Padding * 8},
+    {album:'Kind of Blue', artist:'Miles Davis', cluster: 9, radius: R, x: X, y: Y + Padding * 9},
+    {album:'Loveless', artist:'My Bloody Valentine', cluster: 10, radius: R, x: X, y: Y + Padding * 10},
+    {album:'Highway 61 Revisited', artist:'Bob Dylan', cluster: 11, radius: R, x: X, y: Y + Padding * 11},
+    {album:'The Rise and Fall of Ziggy Stardust and the Spiders From Mars', artist:'David Bowie', cluster: 12, radius: R, x: X, y: Y + Padding * 12},
+    {album:'Paranoid', artist:'Black Sabbath', cluster: 13, radius: R, x: X, y: Y + Padding * 13},
+    {album:'Doolittle', artist:'Pixies', cluster: 14, radius: R, x: X, y: Y + Padding * 14},
+    {album:'A Love Supreme', artist:'John Coltrane', cluster: 15, radius: R, x: X, y: Y + Padding * 15},
+    {album:'Pet Sounds', artist:'The Beach Boys', cluster: 16, radius: R, x: X, y: Y + Padding * 16},
+    {album:"Sgt. Pepper's Lonely Hearts Club Band", artist:'The Beatles', cluster: 17, radius: R, x: X, y: Y + Padding * 17}
+  ];
+
+
+// The largest node for each cluster.
+var clusters = new Array(m);
+
+  var nodes = new Array(n);
+  var albums = json.children;
+  for (var i = 0; i < m; i++) {
+    for (var j = 0; j < (n/m); j++) {
+        var index = i * (n/m) + j;
+        nodes[index] = {
+          album: albums[index].album,
+          artist: albums[index].artist,
+          cluster: i,
+          radius: (albums[index].count + 0.5) * 3,
+          x: Math.cos(i / m * 2 * Math.PI) * 200 + width / 2 + Math.random(),
+          y: Math.sin(i / m * 2 * Math.PI) * 200 + height / 2 + Math.random()
+        };
+        if (!clusters[i] || (nodes[index].radius > clusters[i].radius)) clusters[i] = nodes[index];
+    }
+  }
+
+  var force = d3.layout.force()
+      .nodes(nodes)
+      .size([width, height])
+      .gravity(.02)
+      .charge(0)
+      .on("tick", tick)
+      .start();
+
+  var svg = d3.select("body").append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+  svg.selectAll('ellipse.myAlbum')
+    .data(myAlbum)
+    .enter().append('ellipse')
+    .attr('class', 'myAlbum')
+    .attr('id', function(d) { return d.album; })
+    .attr('cx', function(d, i) { return d.x; })
+    .attr('cy', function(d, i) { return d.y; })
+    .attr('rx', function(d, i) { 
+      return d.radius; 
+    })
+    .attr('ry', function(d, i) { 
+      return d.radius; 
+    })
+    .style('fill', function(d, i) { 
+        return color(d.cluster); 
+    })
+    .on("mouseover", function(d) {
+      d3.select("#album_related").text(d.album);
+      d3.select("#band").text("Artists: "+d.artist);
+    });
+
+  var node = svg.selectAll("circle")
+      .data(nodes)
+      .enter().append("circle")
+      .style("fill", function(d) { 
+        return color(d.cluster);
+      })
+      .on("mouseover", function(d) {
+        d3.select("#album_related").text(d.album);
+        d3.select("#band").text("Artists: "+d.artist);
+      });
+
+  node.transition()
+      .duration(750)
+      .delay(function(d, i) { 
+        return i * 5; 
+      })
+      .attrTween("r", function(d) {
+        var i = d3.interpolate(0, d.radius);
+        return function(t) { 
+          return d.radius = i(t);
+        };
+      });
+
+  // display main abulms
+  svg.append("text")
+    .attr("id", "album_related")
+    .attr("x", 30)
+    .attr("y", 80)
+    .style("font-size", "32px")
+    .style("text-anchor", "left")
+    .text("Album Name");
+
+  svg.append("text")
+  .attr("id", "band")
+  .attr("x", 30)
+  .attr("y", 110)
+  .style("text-anchor", "left")
+  .text("Artists");
+
+
+  function tick(e) {
+    node
+        .each(cluster(10 * e.alpha * e.alpha))
+        .each(collide(.5))
+        .attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; });
+  }
+
+  // Move d to be adjacent to the cluster node.
+  function cluster(alpha) {
+    return function(d) {
+      var cluster = clusters[d.cluster];
+      if (cluster === d) return;
+      var x = d.x - cluster.x,
+          y = d.y - cluster.y,
+          l = Math.sqrt(x * x + y * y),
+          r = d.radius + cluster.radius;
+      if (l != r) {
+        l = (l - r) / l * alpha;
+        d.x -= x *= l;
+        d.y -= y *= l;
+        cluster.x += x;
+        cluster.y += y;
+      }
+    };
+  }
+
+  // Resolves collisions between d and all other circles.
+  function collide(alpha) {
+    var quadtree = d3.geom.quadtree(nodes);
+    return function(d) {
+      var r = d.radius + maxRadius + Math.max(padding, clusterPadding),
+          nx1 = d.x - r,
+          nx2 = d.x + r,
+          ny1 = d.y - r,
+          ny2 = d.y + r;
+      quadtree.visit(function(quad, x1, y1, x2, y2) {
+        if (quad.point && (quad.point !== d)) {
+          var x = d.x - quad.point.x,
+              y = d.y - quad.point.y,
+              l = Math.sqrt(x * x + y * y),
+              r = d.radius + quad.point.radius + (d.cluster === quad.point.cluster ? padding : clusterPadding);
+          if (l < r) {
+            l = (l - r) / l * alpha;
+            d.x -= x *= l;
+            d.y -= y *= l;
+            quad.point.x += x;
+            quad.point.y += y;
+          }
+        }
+        return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+      });
+    };
+  }
+
+});
+
+</script>
